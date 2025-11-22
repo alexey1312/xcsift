@@ -62,6 +62,104 @@ struct BuildResult: Codable {
             try container.encode(coverage, forKey: .coverage)
         }
     }
+
+    // MARK: - GitHub Actions Output
+
+    /// Formats the build result as GitHub Actions workflow commands
+    func formatGitHubActions() -> String {
+        var output: [String] = []
+
+        // Format errors as ::error commands
+        for error in errors {
+            output.append(formatGitHubActionsError(error))
+        }
+
+        // Format warnings as ::warning commands
+        if printWarnings {
+            for warning in warnings {
+                output.append(formatGitHubActionsWarning(warning))
+            }
+        }
+
+        // Format failed tests as ::error commands
+        for test in failedTests {
+            output.append(formatGitHubActionsTest(test))
+        }
+
+        // Add summary notice
+        let summaryMessage = buildSummaryMessage()
+        output.append("::notice ::\(summaryMessage)")
+
+        return output.joined(separator: "\n")
+    }
+
+    private func formatGitHubActionsError(_ error: BuildError) -> String {
+        let fileComponents = formatFileComponents(file: error.file, line: error.line, column: nil)
+        return "::\("error") \(fileComponents)::\(error.message)"
+    }
+
+    private func formatGitHubActionsWarning(_ warning: BuildWarning) -> String {
+        let fileComponents = formatFileComponents(file: warning.file, line: warning.line, column: nil)
+        return "::\("warning") \(fileComponents)::\(warning.message)"
+    }
+
+    private func formatGitHubActionsTest(_ test: FailedTest) -> String {
+        let fileComponents = formatFileComponents(file: test.file, line: test.line, column: nil)
+        let message = "\(test.test): \(test.message)"
+        return "::\("error") \(fileComponents)::\(message)"
+    }
+
+    private func formatFileComponents(file: String?, line: Int?, column: Int?) -> String {
+        guard let file = file else {
+            return ""
+        }
+
+        guard let line = line else {
+            return "file=\(file)"
+        }
+
+        if let column = column {
+            return "file=\(file),line=\(line),col=\(column)"
+        }
+
+        return "file=\(file),line=\(line)"
+    }
+
+    private func buildSummaryMessage() -> String {
+        var parts: [String] = []
+
+        if status == "success" {
+            parts.append("Build succeeded")
+        } else {
+            parts.append("Build failed")
+        }
+
+        if summary.errors > 0 {
+            parts.append("\(summary.errors) error\(summary.errors == 1 ? "" : "s")")
+        }
+
+        if summary.warnings > 0 {
+            parts.append("\(summary.warnings) warning\(summary.warnings == 1 ? "" : "s")")
+        }
+
+        if summary.failedTests > 0 {
+            parts.append("\(summary.failedTests) failed test\(summary.failedTests == 1 ? "" : "s")")
+        }
+
+        if let passedTests = summary.passedTests, passedTests > 0 {
+            parts.append("\(passedTests) passed test\(passedTests == 1 ? "" : "s")")
+        }
+
+        if let buildTime = summary.buildTime {
+            parts.append("in \(buildTime)")
+        }
+
+        if let coveragePercent = summary.coveragePercent {
+            parts.append(String(format: "%.1f%% coverage", coveragePercent))
+        }
+
+        return parts.joined(separator: ", ")
+    }
 }
 
 struct BuildSummary: Codable {

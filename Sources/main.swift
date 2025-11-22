@@ -8,6 +8,7 @@ import TOONEncoder
 enum FormatType: String, ExpressibleByArgument {
     case json
     case toon
+    case githubActions = "github-actions"
 }
 
 enum TOONDelimiterType: String, ExpressibleByArgument {
@@ -49,9 +50,9 @@ struct XCSift: ParsableCommand {
     static let configuration = CommandConfiguration(
         commandName: "xcsift",
         abstract: "A Swift tool to parse and format xcodebuild output for coding agents",
-        usage: "xcodebuild [options] 2>&1 | xcsift [--format|-f json|toon] [--toon-delimiter comma|tab|pipe] [--toon-length-marker none|hash] [--warnings|-w] [--Werror|-W] [--quiet|-q] [--coverage|-c] [--version|-v] [--help|-h]",
+        usage: "xcodebuild [options] 2>&1 | xcsift [--format|-f json|toon|github-actions] [--toon-delimiter comma|tab|pipe] [--toon-length-marker none|hash] [--warnings|-w] [--Werror|-W] [--quiet|-q] [--coverage|-c] [--version|-v] [--help|-h]",
         discussion: """
-        xcsift parses xcodebuild/SPM output and formats it as JSON or TOON.
+        xcsift parses xcodebuild/SPM output and formats it as JSON, TOON, or GitHub Actions.
 
         Important: Always use 2>&1 to redirect stderr to stdout.
 
@@ -69,6 +70,10 @@ struct XCSift: ParsableCommand {
         TOON format (30-60% fewer tokens for LLMs):
           xcodebuild build 2>&1 | xcsift -f toon
           swift test 2>&1 | xcsift -f toon -w -c
+
+        GitHub Actions format (auto-detected in CI):
+          xcodebuild build 2>&1 | xcsift -f github-actions
+          swift test 2>&1 | xcsift --format github-actions -w
 
         Configuration options:
           --toon-delimiter [comma|tab|pipe]  # Default: comma
@@ -98,8 +103,14 @@ struct XCSift: ParsableCommand {
     @Flag(name: .long, help: "Include detailed per-file coverage data (default: summary only)")
     var coverageDetails: Bool = false
 
-    @Option(name: [.customShort("f"), .long], help: "Output format (json or toon). Default: json")
-    var format: FormatType = .json
+    @Option(name: [.customShort("f"), .long], help: "Output format (json, toon, or github-actions). Default: auto-detect or json")
+    var format: FormatType = {
+        // Auto-detect GitHub Actions environment
+        if ProcessInfo.processInfo.environment["GITHUB_ACTIONS"] == "true" {
+            return .githubActions
+        }
+        return .json
+    }()
 
     @Option(name: .long, help: "TOON delimiter (comma, tab, or pipe). Default: comma")
     var toonDelimiter: TOONDelimiterType = .comma
@@ -165,9 +176,12 @@ struct XCSift: ParsableCommand {
             return
         }
 
-        if format == .toon {
+        switch format {
+        case .githubActions:
+            outputGitHubActions(result)
+        case .toon:
             outputTOON(result)
-        } else {
+        case .json:
             outputJSON(result)
         }
     }
@@ -206,7 +220,12 @@ struct XCSift: ParsableCommand {
             fputs("Error encoding TOON: \(error)\n", stderr)
         }
     }
-    
+
+    private func outputGitHubActions(_ result: BuildResult) {
+        let output = result.formatGitHubActions()
+        print(output)
+    }
+
 }
 
 XCSift.main()
