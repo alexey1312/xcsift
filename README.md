@@ -12,8 +12,9 @@ A Swift command-line tool to parse and format xcodebuild/SPM output for coding a
 
 ## Features
 
-- **Token-efficient output formats** - JSON (default) or TOON format (30-60% fewer tokens)
+- **Multiple output formats** - JSON (default), TOON (30-60% fewer tokens), or GitHub Actions
 - **TOON format support** - Token-Oriented Object Notation optimized for LLM consumption
+- **GitHub Actions integration** - Auto-detected workflow commands with inline PR annotations
 - **Structured error reporting** - Clear categorization of errors, warnings, and test failures
 - **File/line number extraction** - Easy navigation to problematic code locations
 - **Build status summary** - Quick overview of build results
@@ -77,7 +78,7 @@ xcodebuild [flags] 2>&1 | xcsift
 
 **Important**: Always use `2>&1` to redirect stderr to stdout. This ensures all compiler errors, warnings, and build output are captured, removing noise and providing clean, structured output.
 
-Supports both **JSON** (default) and **TOON** formats.
+Supports **JSON** (default), **TOON**, and **GitHub Actions** formats.
 
 ### Examples
 
@@ -130,6 +131,14 @@ xcodebuild test -enableCodeCoverage YES 2>&1 | xcsift -f toon -c
 
 # Combine all flags
 xcodebuild test 2>&1 | xcsift -f toon -w -c --coverage-details
+
+# GitHub Actions format (auto-detected when GITHUB_ACTIONS=true)
+# Creates workflow annotations visible in PR and Actions UI
+xcodebuild build 2>&1 | xcsift --format github-actions
+swift test 2>&1 | xcsift -f github-actions -w
+
+# Manual override in CI (auto-detected by default)
+xcodebuild build 2>&1 | xcsift -f github-actions
 ```
 
 ## Output Format
@@ -277,16 +286,60 @@ xcodebuild test 2>&1 | xcsift -f toon --toon-delimiter tab --toon-length-marker 
 swift test 2>&1 | xcsift -f toon --toon-delimiter pipe --toon-length-marker hash --coverage-details
 ```
 
+### GitHub Actions Format
+
+With the `--format github-actions` / `-f github-actions` flag, xcsift outputs [GitHub Actions workflow commands](https://docs.github.com/en/actions/using-workflows/workflow-commands-for-github-actions) that create inline annotations in pull requests and workflow runs.
+
+**Auto-Detection:** When running in GitHub Actions (environment variable `GITHUB_ACTIONS=true`), xcsift automatically uses this format without needing the flag.
+
+**Example Output:**
+```
+::error file=main.swift,line=15::use of undeclared identifier 'unknown'
+::warning file=Parser.swift,line=20::immutable value 'result' was never used
+::error file=/path/to/Tests.swift,line=123::LoginTests testInvalidCredentials: XCTAssertEqual failed
+::notice ::Build failed, 1 error, 1 warning, 1 failed test, in 3.2 seconds
+```
+
+**Features:**
+- **Inline PR annotations** - Errors and warnings appear directly on the relevant file and line in pull requests
+- **Aggregated summary** - All issues visible in the workflow run's Annotations tab
+- **Auto-detection** - No configuration needed in GitHub Actions CI/CD
+- **File/line/column** - Precise location information for quick navigation
+- **Compatible flags** - Works with `--warnings`, `--coverage`, `--quiet`
+
+**GitHub Actions Workflow Example:**
+```yaml
+name: Build
+
+on: [push, pull_request]
+
+jobs:
+  build:
+    runs-on: macos-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build
+        run: |
+          set -o pipefail
+          xcodebuild build 2>&1 | xcsift
+          # xcsift auto-detects GitHub Actions and outputs annotations
+```
+
+**Annotation Types:**
+- `::error` - Compile errors, test failures, fatal errors
+- `::warning` - Compiler warnings, deprecation warnings
+- `::notice` - Build summary with status, error/warning counts, test results, coverage
 
 ## Comparison with xcbeautify/xcpretty
 
 | Feature | xcsift | xcbeautify | xcpretty |
 |---------|---------|------------|----------|
-| **Target audience** | Coding agents / LLMs | Humans | Humans |
-| **Output format** | JSON + TOON | Colorized text | Formatted text |
+| **Target audience** | Coding agents / LLMs / CI | Humans / CI | Humans |
+| **Output format** | JSON + TOON + GH Actions | Colorized text + GH Actions | Formatted text |
 | **Token efficiency** | Very High (TOON) | Medium | Low |
 | **LLM optimization** | Yes (TOON format) | No | No |
 | **Machine readable** | Yes | No | Limited |
+| **GitHub Actions** | Yes (auto-detected) | Yes | No |
 | **Error extraction** | Structured | Visual | Visual |
 | **Code coverage** | Auto-converts | No | No |
 | **Build time** | Fast | Fast | Slower |
