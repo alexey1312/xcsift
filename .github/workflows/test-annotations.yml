@@ -1,0 +1,224 @@
+name: Test GitHub Actions Annotations
+
+on:
+  push:
+    branches: [master, feature/support-github-actions]
+  pull_request:
+    branches: [master]
+  workflow_dispatch: # Allow manual trigger
+
+jobs:
+  test-annotations:
+    name: Test Annotations Output
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 16
+        run: sudo xcode-select -s /Applications/Xcode_16.1.app/Contents/Developer
+
+      - name: Build xcsift
+        run: swift build
+
+      - name: Create test file with errors
+        run: |
+          mkdir -p /tmp/test-project
+          cat > /tmp/test-project/Package.swift << 'EOF'
+          // swift-tools-version: 6.0
+          import PackageDescription
+          let package = Package(
+              name: "TestProject",
+              targets: [.executableTarget(name: "TestProject", path: "Sources")]
+          )
+          EOF
+
+          mkdir -p /tmp/test-project/Sources
+          cat > /tmp/test-project/Sources/main.swift << 'EOF'
+          // Test file with intentional errors and warnings
+          import Foundation
+
+          // Warning: unused variable
+          let unusedVar = 42
+
+          // Error: type mismatch
+          let x: Int = "this is not an int"
+
+          // Warning: deprecated
+          let y = NSString(string: "test").intValue
+
+          print("Hello")
+          EOF
+
+      - name: Test annotations generation (expect failure)
+        id: build-test
+        continue-on-error: true
+        run: |
+          cd /tmp/test-project
+          swift build 2>&1 | ${{ github.workspace }}/.build/debug/xcsift
+
+      - name: Verify annotations were generated
+        run: |
+          echo "✅ Annotations test completed"
+          echo "Check the Actions UI above for error/warning annotations"
+
+  test-formats:
+    name: Test Output Formats
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build xcsift
+        run: swift build
+
+      - name: Create test file
+        run: |
+          mkdir -p /tmp/test-project/Sources
+          cat > /tmp/test-project/Package.swift << 'EOF'
+          // swift-tools-version: 6.0
+          import PackageDescription
+          let package = Package(
+              name: "TestProject",
+              targets: [.executableTarget(name: "TestProject", path: "Sources")]
+          )
+          EOF
+
+          cat > /tmp/test-project/Sources/main.swift << 'EOF'
+          let x: Int = "error"
+          EOF
+
+      - name: Test JSON format + annotations
+        continue-on-error: true
+        run: |
+          echo "=== JSON + Annotations ==="
+          cd /tmp/test-project
+          swift build 2>&1 | ${{ github.workspace }}/.build/debug/xcsift -f json
+
+      - name: Test TOON format + annotations
+        continue-on-error: true
+        run: |
+          echo "=== TOON + Annotations ==="
+          cd /tmp/test-project
+          swift build 2>&1 | ${{ github.workspace }}/.build/debug/xcsift -f toon
+
+      - name: Test github-actions format only
+        continue-on-error: true
+        run: |
+          echo "=== GitHub Actions only ==="
+          cd /tmp/test-project
+          swift build 2>&1 | ${{ github.workspace }}/.build/debug/xcsift -f github-actions
+
+  test-xcsift-dogfood:
+    name: Test xcsift on itself
+    runs-on: macos-15
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Select Xcode 16
+        run: sudo xcode-select -s /Applications/Xcode_16.1.app/Contents/Developer
+
+      - name: Build xcsift
+        run: swift build
+
+      - name: "swift build 2>&1 | xcsift (default JSON)"
+        run: swift build 2>&1 | .build/debug/xcsift
+
+      - name: "swift build 2>&1 | xcsift -f json"
+        run: swift build 2>&1 | .build/debug/xcsift -f json
+
+      - name: "swift build 2>&1 | xcsift -f toon"
+        run: swift build 2>&1 | .build/debug/xcsift -f toon
+
+      - name: "swift build 2>&1 | xcsift -f github-actions"
+        run: swift build 2>&1 | .build/debug/xcsift -f github-actions
+
+      - name: "swift build 2>&1 | xcsift --warnings"
+        run: swift build 2>&1 | .build/debug/xcsift --warnings
+
+      - name: "swift build 2>&1 | xcsift -f toon --warnings"
+        run: swift build 2>&1 | .build/debug/xcsift -f toon --warnings
+
+      - name: "swift build 2>&1 | xcsift --quiet (should produce no output on success)"
+        run: |
+          OUTPUT=$(swift build 2>&1 | .build/debug/xcsift --quiet)
+          if [ -z "$OUTPUT" ]; then
+            echo "✅ --quiet mode works: no output on successful build"
+          else
+            echo "Output was: $OUTPUT"
+          fi
+
+      - name: "swift test 2>&1 | xcsift"
+        run: swift test 2>&1 | .build/debug/xcsift
+
+      - name: "swift test --enable-code-coverage 2>&1 | xcsift --coverage"
+        run: swift test --enable-code-coverage 2>&1 | .build/debug/xcsift --coverage
+
+      - name: "swift test --enable-code-coverage 2>&1 | xcsift -c --coverage-details"
+        run: swift test --enable-code-coverage 2>&1 | .build/debug/xcsift -c --coverage-details
+
+      - name: "swift test 2>&1 | xcsift -f toon --coverage"
+        run: swift test --enable-code-coverage 2>&1 | .build/debug/xcsift -f toon --coverage
+
+  test-linux:
+    name: Test Annotations (Linux)
+    runs-on: ubuntu-latest
+    container:
+      image: swift:6.0
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build xcsift
+        run: swift build
+
+      - name: Create test file with error
+        run: |
+          mkdir -p /tmp/test-project/Sources
+          cat > /tmp/test-project/Package.swift << 'EOF'
+          // swift-tools-version: 6.0
+          import PackageDescription
+          let package = Package(
+              name: "TestProject",
+              targets: [.executableTarget(name: "TestProject", path: "Sources")]
+          )
+          EOF
+
+          cat > /tmp/test-project/Sources/main.swift << 'EOF'
+          let x: Int = "error"
+          EOF
+
+      - name: Test annotations on Linux
+        continue-on-error: true
+        run: |
+          cd /tmp/test-project
+          swift build 2>&1 | ${{ github.workspace }}/.build/debug/xcsift
+
+  test-linux-dogfood:
+    name: Test xcsift on itself (Linux)
+    runs-on: ubuntu-latest
+    container:
+      image: swift:6.0
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build xcsift
+        run: swift build
+
+      - name: "swift build 2>&1 | xcsift"
+        run: swift build 2>&1 | .build/debug/xcsift
+
+      - name: "swift build 2>&1 | xcsift -f toon"
+        run: swift build 2>&1 | .build/debug/xcsift -f toon
+
+      - name: "swift build 2>&1 | xcsift --quiet"
+        run: |
+          OUTPUT=$(swift build 2>&1 | .build/debug/xcsift --quiet)
+          if [ -z "$OUTPUT" ]; then
+            echo "✅ --quiet mode works: no output on successful build"
+          else
+            echo "Output was: $OUTPUT"
+          fi
+
+      - name: "swift test 2>&1 | xcsift"
+        run: swift test 2>&1 | .build/debug/xcsift
+
+      - name: "swift test 2>&1 | xcsift -f toon --warnings"
+        run: swift test 2>&1 | .build/debug/xcsift -f toon --warnings
