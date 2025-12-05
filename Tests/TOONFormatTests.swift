@@ -66,8 +66,8 @@ final class TOONFormatTests: XCTestCase {
         XCTAssertTrue(toonString!.contains("status: failed"))
         XCTAssertTrue(toonString!.contains("errors: 1"))
         XCTAssertTrue(toonString!.contains("warnings: 1"))
-        XCTAssertTrue(toonString!.contains("errors[1]{file,line,message}"))
-        XCTAssertTrue(toonString!.contains("warnings[1]{file,line,message}"))
+        XCTAssertTrue(toonString!.contains("errors[1]{file,line,message,notes}"))
+        XCTAssertTrue(toonString!.contains("warnings[1]{file,line,message,notes}"))
     }
 
     func testTOONEncoderWithCoverage() throws {

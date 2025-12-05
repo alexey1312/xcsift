@@ -1,0 +1,21 @@
+/Users/dev/Project/Sources/Parser.swift:20:10: warning: variable 'result' was never mutated; consider changing to 'let' constant
+    var result = compute()
+    ~~~^~~
+/Users/dev/Project/Sources/Parser.swift:20:10: note: change 'var' to 'let' to make it constant
+    var result = compute()
+    ^~~
+    let
+/Users/dev/Project/Sources/main.swift:15:5: error: use of undeclared identifier 'foo'
+    foo.bar()
+    ^~~
+/Users/dev/Project/Sources/main.swift:15:5: note: did you mean 'for'?
+    foo.bar()
+    ^~~
+    for
+/Users/dev/Project/Sources/Model.swift:30:20: warning: result of call to 'save()' is unused
+        database.save()
+                 ^~~~~~
+/Users/dev/Project/Sources/Model.swift:30:20: note: consider using '_ = ' to silence this warning
+/Users/dev/Project/Sources/Utils.swift:50:10: error: cannot find 'xyz' in scope
+    let val = xyz.compute()
+              ^~~

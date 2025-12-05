@@ -380,4 +380,222 @@ final class ParsingTests: XCTestCase {
         XCTAssertEqual(result.errors[0].line, 15)
         XCTAssertEqual(result.errors[0].message, "use of undeclared identifier 'unknown'")
     }
+
+    // MARK: - Fix-it Tests
+
+    func testErrorWithFixHints() {
+        let parser = OutputParser()
+        let input = """
+            main.swift:15:5: error: use of undeclared identifier 'foo'
+            main.swift:15:5: note: did you mean 'for'?
+            """
+        let result = parser.parse(input: input)
+
+        XCTAssertEqual(result.errors.count, 1)
+        XCTAssertEqual(result.errors[0].file, "main.swift")
+        XCTAssertEqual(result.errors[0].line, 15)
+        XCTAssertEqual(result.errors[0].message, "use of undeclared identifier 'foo'")
+        XCTAssertEqual(result.errors[0].notes, ["did you mean 'for'?"])
+    }
+
+    func testWarningWithFixHints() {
+        let parser = OutputParser()
+        let input = """
+            Parser.swift:20:10: warning: variable 'result' was never mutated
+            Parser.swift:20:10: note: change 'var' to 'let' to make it constant
+            """
+        let result = parser.parse(input: input)
+
+        XCTAssertEqual(result.warnings.count, 1)
+        XCTAssertEqual(result.warnings[0].file, "Parser.swift")
+        XCTAssertEqual(result.warnings[0].line, 20)
+        XCTAssertEqual(result.warnings[0].message, "variable 'result' was never mutated")
+        XCTAssertEqual(result.warnings[0].notes, ["change 'var' to 'let' to make it constant"])
+    }
+
+    func testErrorWithoutFixHints() {
+        let parser = OutputParser()
+        let input = "main.swift:10:1: error: cannot find 'xyz' in scope"
+        let result = parser.parse(input: input)
+
+        XCTAssertEqual(result.errors.count, 1)
+        XCTAssertNil(result.errors[0].notes)
+    }
+
+    func testWarningWithoutFixHints() {
+        let parser = OutputParser()
+        let input = "Model.swift:30:5: warning: unused variable 'temp'"
+        let result = parser.parse(input: input)
+
+        XCTAssertEqual(result.warnings.count, 1)
+        XCTAssertNil(result.warnings[0].notes)
+    }
+
+    func testMultipleNotesAllCaptured() {
+        let parser = OutputParser()
+        // When multiple notes exist, all real fix-its are captured
+        let input = """
+            main.swift:15:5: error: ambiguous use of 'foo'
+            main.swift:10:10: note: did you mean 'foo(_:)'?
+            main.swift:20:10: note: or did you mean 'foo(bar:)'?
+            """
+        let result = parser.parse(input: input)
+
+        XCTAssertEqual(result.errors.count, 1)
+        XCTAssertEqual(result.errors[0].notes, ["did you mean 'foo(_:)'?", "or did you mean 'foo(bar:)'?"])
+    }
+
+    func testAmbiguousUseWithCandidatesNotCaptured() {
+        let parser = OutputParser()
+        // "found this candidate" is a reference note, not a fix-it
+        let input = """
+            main.swift:15:5: error: ambiguous use of 'foo'
+            main.swift:10:10: note: found this candidate
+            main.swift:20:10: note: found this candidate
+            """
+        let result = parser.parse(input: input)
+
+        XCTAssertEqual(result.errors.count, 1)
+        XCTAssertNil(result.errors[0].notes)  // Reference notes are filtered
+    }
+
+    func testFixHintsWithVisualMarkers() {
+        let parser = OutputParser()
+        // Real compiler output with visual markers (~~~, ^~~, let)
+        let input = """
+            /Users/dev/Project/Sources/Parser.swift:20:10: warning: variable 'result' was never mutated
+                var result = compute()
+                ~~~^~~
+            /Users/dev/Project/Sources/Parser.swift:20:10: note: change 'var' to 'let' to make it constant
+                var result = compute()
+                ^~~
+                let
+            """
+        let result = parser.parse(input: input)
+
+        XCTAssertEqual(result.warnings.count, 1)
+        XCTAssertEqual(result.warnings[0].notes, ["change 'var' to 'let' to make it constant"])
+    }
+
+    func testMixedErrorsAndWarningsWithFixHints() {
+        let parser = OutputParser()
+        let input = """
+            Parser.swift:20:10: warning: variable 'result' was never mutated
+            Parser.swift:20:10: note: change 'var' to 'let' to make it constant
+            main.swift:15:5: error: use of undeclared identifier 'foo'
+            main.swift:15:5: note: did you mean 'for'?
+            Model.swift:30:20: warning: result of call to 'save()' is unused
+            """
+        let result = parser.parse(input: input)
+
+        XCTAssertEqual(result.errors.count, 1)
+        XCTAssertEqual(result.warnings.count, 2)
+
+        XCTAssertEqual(result.errors[0].notes, ["did you mean 'for'?"])
+        XCTAssertEqual(result.warnings[0].notes, ["change 'var' to 'let' to make it constant"])
+        XCTAssertNil(result.warnings[1].notes)  // No note for this warning
+    }
+
+    func testFixHintsFromFixture() throws {
+        let url = Bundle.module.url(forResource: "fixit-output", withExtension: "txt")!
+        let input = try String(contentsOf: url, encoding: .utf8)
+
+        let parser = OutputParser()
+        let result = parser.parse(input: input)
+
+        // 2 errors, 2 warnings from fixture
+        XCTAssertEqual(result.errors.count, 2)
+        XCTAssertEqual(result.warnings.count, 2)
+
+        // First warning has fix hints
+        XCTAssertEqual(
+            result.warnings[0].message,
+            "variable 'result' was never mutated; consider changing to 'let' constant"
+        )
+        XCTAssertEqual(result.warnings[0].notes, ["change 'var' to 'let' to make it constant"])
+
+        // First error has fix hints
+        XCTAssertEqual(result.errors[0].message, "use of undeclared identifier 'foo'")
+        XCTAssertEqual(result.errors[0].notes, ["did you mean 'for'?"])
+
+        // Second warning has fix hints
+        XCTAssertEqual(result.warnings[1].message, "result of call to 'save()' is unused")
+        XCTAssertEqual(result.warnings[1].notes, ["consider using '_ = ' to silence this warning"])
+
+        // Second error has no fix hints
+        XCTAssertEqual(result.errors[1].message, "cannot find 'xyz' in scope")
+        XCTAssertNil(result.errors[1].notes)
+    }
+
+    // MARK: - Reference Note Filtering Tests
+
+    func testReferenceNotesDeclaredHereNotCaptured() {
+        let parser = OutputParser()
+        // Real-world example: Swift 6 actor isolation warning
+        let input = """
+            DeviceProvider.swift:101:16: warning: main actor-isolated property 'osVersion' can not be referenced from a nonisolated context
+            UIDevice.swift:50:20: note: property declared here
+            """
+        let result = parser.parse(input: input)
+
+        XCTAssertEqual(result.warnings.count, 1)
+        XCTAssertNil(result.warnings[0].notes)  // "declared here" is not a fix-it
+    }
+
+    func testReferenceNotesClassPropertyDeclaredHereNotCaptured() {
+        let parser = OutputParser()
+        let input = """
+            DeviceProvider.swift:101:16: warning: main actor-isolated class property 'current' can not be referenced
+            UIDevice.swift:25:10: note: class property declared here
+            """
+        let result = parser.parse(input: input)
+
+        XCTAssertEqual(result.warnings.count, 1)
+        XCTAssertNil(result.warnings[0].notes)  // "class property declared here" is not a fix-it
+    }
+
+    func testSystemNoteDetectedEncodingNotCaptured() {
+        let parser = OutputParser()
+        let input = """
+            Bundle+Custom.swift:82:5: warning: 'nonisolated(unsafe)' has no effect on property 'appVersion'
+            Bundle+Custom.swift:82:5: note: detected encoding of input file as Unicode (UTF-8) (in target 'CommonKit' from project 'inDriver')
+            """
+        let result = parser.parse(input: input)
+
+        XCTAssertEqual(result.warnings.count, 1)
+        XCTAssertNil(result.warnings[0].notes)  // System note is not a fix-it
+    }
+
+    func testRealFixHintsStillCapturedAfterFiltering() {
+        let parser = OutputParser()
+        // Mix of reference note (should be skipped) and real fix-it (should be captured)
+        let input = """
+            main.swift:10:5: error: use of undeclared identifier 'foo'
+            main.swift:10:5: note: did you mean 'for'?
+            other.swift:20:10: warning: variable 'x' was never used
+            other.swift:5:10: note: 'x' declared here
+            """
+        let result = parser.parse(input: input)
+
+        XCTAssertEqual(result.errors.count, 1)
+        XCTAssertEqual(result.warnings.count, 1)
+
+        // Real fix-it should be captured
+        XCTAssertEqual(result.errors[0].notes, ["did you mean 'for'?"])
+        // Reference note should not be captured
+        XCTAssertNil(result.warnings[0].notes)
+    }
+
+    func testMultipleReferenceNotesAllFiltered() {
+        let parser = OutputParser()
+        let input = """
+            File.swift:10:5: error: protocol 'MyProtocol' requires function 'doSomething()'
+            Protocol.swift:5:10: note: protocol requires function 'doSomething()' with type '() -> Void'
+            Protocol.swift:3:10: note: requirement specified as 'doSomething' in protocol 'MyProtocol'
+            """
+        let result = parser.parse(input: input)
+
+        XCTAssertEqual(result.errors.count, 1)
+        XCTAssertNil(result.errors[0].notes)  // Both notes are reference notes
+    }
 }

@@ -21,6 +21,10 @@ class OutputParser {
     private var pendingDuplicateSymbol: String?
     private var pendingConflictingFiles: [String] = []
 
+    // Fix-it tracking state
+    private var lastErrorIndex: Int?
+    private var lastWarningIndex: Int?
+
     // MARK: - Static Regex Patterns (compiled once)
 
     // Error patterns
@@ -407,6 +411,8 @@ class OutputParser {
         pendingLinkerSymbol = nil
         pendingDuplicateSymbol = nil
         pendingConflictingFiles = []
+        lastErrorIndex = nil
+        lastWarningIndex = nil
     }
 
     private func parseLine(_ line: String) {
@@ -417,6 +423,12 @@ class OutputParser {
 
         // Check for linker-related lines first (multi-line parsing)
         if parseLinkerLine(line) {
+            return
+        }
+
+        // Check for note: lines (fix-it suggestions)
+        if line.contains("note:") {
+            parseNote(line)
             return
         }
 
@@ -449,8 +461,12 @@ class OutputParser {
             }
         } else if let error = parseError(line) {
             errors.append(error)
+            lastErrorIndex = errors.count - 1
+            lastWarningIndex = nil
         } else if let warning = parseWarning(line) {
             warnings.append(warning)
+            lastWarningIndex = warnings.count - 1
+            lastErrorIndex = nil
         } else if parsePassedTest(line) {
             return
         } else if let time = parseBuildTime(line) {
@@ -577,6 +593,68 @@ class OutputParser {
 
     private func hasSeenSimilarTest(_ normalizedTestName: String) -> Bool {
         return seenTestNames.contains(normalizedTestName)
+    }
+
+    // MARK: - Fix-it Parsing
+
+    /// Patterns for notes that reference declarations (not actionable fix-its)
+    private static let referenceNotePatterns: Set<String> = [
+        "declared here",
+        "defined here",
+        "required here",
+        "specified here",
+        "inherited here",
+        "overridden here",
+        "protocol requires",
+        "candidate is",
+        "found this candidate",
+        "requirement specified",
+        "previous declaration",
+        "previous definition",
+        "originally declared",
+    ]
+
+    /// Patterns for system/context notes (not actionable fix-its)
+    private static let systemNotePatterns: Set<String> = [
+        "detected encoding",
+        "in target",
+        "from project",
+        "in module",
+        "built for",
+        "compiled with",
+        "linker command",
+    ]
+
+    /// Parses note: lines and associates them with the last error or warning.
+    /// Only captures notes that are actual fix-it suggestions, not reference notes.
+    private func parseNote(_ line: String) {
+        guard let noteRange = line.range(of: "note:") else { return }
+        let noteMessage = String(line[noteRange.upperBound...]).trimmingCharacters(in: .whitespaces)
+
+        guard !noteMessage.isEmpty else { return }
+        guard !Self.isFilteredNote(noteMessage) else { return }
+
+        // Associate with last error or warning (collect all notes)
+        if let idx = lastErrorIndex {
+            if errors[idx].notes == nil {
+                errors[idx].notes = [noteMessage]
+            } else {
+                errors[idx].notes?.append(noteMessage)
+            }
+        } else if let idx = lastWarningIndex {
+            if warnings[idx].notes == nil {
+                warnings[idx].notes = [noteMessage]
+            } else {
+                warnings[idx].notes?.append(noteMessage)
+            }
+        }
+    }
+
+    /// Checks if a note should be filtered out (reference or system note)
+    private static func isFilteredNote(_ message: String) -> Bool {
+        let lowercased = message.lowercased()
+        return referenceNotePatterns.contains { lowercased.contains($0) }
+            || systemNotePatterns.contains { lowercased.contains($0) }
     }
 
     /// Checks if a line looks like JSON output (e.g., from the tool's own output or other JSON sources)

@@ -30,6 +30,7 @@ let package = Package(
                 .copy("Fixtures/build.txt"),
                 .copy("Fixtures/swift-testing-output.txt"),
                 .copy("Fixtures/linker-error-output.txt"),
+                .copy("Fixtures/fixit-output.txt"),
             ]
         ),
     ]

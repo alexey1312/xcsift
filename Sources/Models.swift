@@ -263,12 +263,13 @@ struct BuildError: Codable {
     let file: String?
     let line: Int?
     let message: String
+    var notes: [String]? = nil
 
     // Internal only - used for GitHub Actions format, not encoded to JSON/TOON
     var column: Int? = nil
 
     enum CodingKeys: String, CodingKey {
-        case file, line, message
+        case file, line, message, notes
     }
 }
 
@@ -276,12 +277,13 @@ struct BuildWarning: Codable {
     let file: String?
     let line: Int?
     let message: String
+    var notes: [String]? = nil
 
     // Internal only - used for GitHub Actions format, not encoded to JSON/TOON
     var column: Int? = nil
 
     enum CodingKeys: String, CodingKey {
-        case file, line, message
+        case file, line, message, notes
     }
 }
 

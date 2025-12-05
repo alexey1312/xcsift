@@ -22,7 +22,7 @@ swift test
 ### Formatting
 **IMPORTANT:** Always run before committing changes:
 ```bash
-swift format --recursive --in-place Sources Tests
+swift format --recursive --in-place .
 ```
 
 ### Installation
@@ -179,6 +179,7 @@ The codebase follows a simple two-component architecture:
 
 ### Key Features
 - **Error/Warning Parsing**: Multiple regex patterns handle various Xcode error formats
+- **Compiler Notes Extraction**: Captures actionable fix-it suggestions from compiler `note:` lines, filtering out reference notes ("declared here") and system notes ("detected encoding")
 - **Linker Error Parsing**: Captures undefined symbols, missing frameworks/libraries, architecture mismatches, and duplicate symbols (with structured conflicting file paths)
 - **Test Failure Detection**: XCUnit assertion failures and general test failures
 - **Build Time Extraction**: Captures build duration from output
@@ -233,6 +234,10 @@ Test cases cover:
 - Multi-error scenarios
 - Build time parsing
 - Edge cases (missing files, deprecated functions)
+- **Compiler notes extraction** (fixture-based):
+  - Notes parsing and filtering
+  - Multiple notes per error/warning
+  - Reference and system note filtering
 - Code coverage data structures and parsing
 - JSON encoding with and without coverage data
 - SPM coverage format parsing
@@ -288,6 +293,8 @@ The tool outputs structured data optimized for coding agents in two formats:
 ### JSON Format (default)
 
 - **JSON**: Structured format with `status`, `summary`, `errors`, `warnings` (optional), `failed_tests`, `linker_errors` (optional), `coverage` (optional)
+  - **Errors and warnings include notes**: `{"errors": [{"file": "...", "line": N, "message": "...", "notes": ["fix suggestion 1", "fix suggestion 2"]}]}`
+  - **Notes are filtered**: Reference notes ("declared here") and system notes ("detected encoding") are automatically excluded
   - **Summary always includes warning and linker error counts**: `{"summary": {"warnings": N, "linker_errors": N, ...}}`
   - **Summary includes coverage percentage** (when `--coverage` flag is used): `{"summary": {"coverage_percent": X.X, ...}}`
   - **Detailed warnings list** (with `--warnings` flag): `{"warnings": [{"file": "...", "line": N, "message": "..."}]}`
