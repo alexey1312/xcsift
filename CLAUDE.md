@@ -239,7 +239,7 @@ Tests are in `Tests/OutputParserTests.swift` using XCTest framework. Test cases 
     - Key folding with build results
     - Key folding combined with flatten depth
     - Combined TOON configuration
-- **Build phases and timing** (20 tests):
+- **Build phases and timing** (29 tests):
   - CompileSwiftSources phase parsing
   - SwiftDriver Compilation phase parsing
   - CompileC (Clang) phase parsing
@@ -254,6 +254,11 @@ Tests are in `Tests/OutputParserTests.swift` using XCTest framework. Test cases 
   - Target completed format
   - Timing omitted by default
   - JSON encoding with phases and timing
+  - SPM Compiling/Linking phase parsing
+  - SPM multiple targets
+  - SPM plugin compilation skipped
+  - Target order preservation
+  - TOON encoding with build_info
 
 Run individual tests:
 ```bash
