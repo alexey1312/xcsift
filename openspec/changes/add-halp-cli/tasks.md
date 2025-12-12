@@ -11,6 +11,7 @@
 - [ ] 2.2 Define subcommands: `explain`, `suggest`, `examples`, `man`
 - [ ] 2.3 Add flags: `--provider`, `--json`, `--verbose`, `--no-cache`
 - [ ] 2.4 Implement `--version` and `--help`
+- [ ] 2.5 Implement `--setup` command for pre-downloading MLX model
 
 ## 3. Context Gathering
 - [ ] 3.1 Implement `--help` output capture for target commands
@@ -21,13 +22,16 @@
 ## 4. Provider Management
 - [ ] 4.1 Implement ProviderManager with fallback chain
 - [ ] 4.2 Add FoundationModel provider (macOS 26+)
-- [ ] 4.3 Add MLX provider with HuggingFace auto-download
+- [ ] 4.3 Add MLX provider with HuggingFace download
 - [ ] 4.4 Implement MLX model download progress (Noora progress bar)
 - [ ] 4.5 Add Apple Silicon detection for MLX availability
-- [ ] 4.6 Add Ollama provider with configurable host/model
-- [ ] 4.7 Add Anthropic provider with API key from env
-- [ ] 4.8 Add OpenAI provider with API key from env
-- [ ] 4.9 Implement provider availability detection chain
+- [ ] 4.6 Implement user consent prompt for MLX download (Noora prompt)
+- [ ] 4.7 Add "smaller model" option (Qwen3-0.6B) in consent dialog
+- [ ] 4.8 Remember user's download preference in config
+- [ ] 4.9 Add Ollama provider with configurable host/model
+- [ ] 4.10 Add Anthropic provider with API key from env
+- [ ] 4.11 Add OpenAI provider with API key from env
+- [ ] 4.12 Implement provider availability detection chain
 
 ## 5. HalpEngine Core
 - [ ] 5.1 Implement prompt templates for each mode (explain, suggest, examples, man)

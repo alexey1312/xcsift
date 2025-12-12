@@ -44,11 +44,24 @@ Creating an LLM-powered CLI help assistant that provides intelligent explanation
 - Anthropic/OpenAI: Paid cloud fallback for complex queries
 
 **MLX Auto-Download** (via AnyLanguageModel):
-- First run downloads model from HuggingFace MLX Community
 - Default model: `mlx-community/Qwen3-4B-4bit` (~2.5GB)
 - Qwen3-4B supports thinking/non-thinking modes, excellent for explanations
 - Cached in `~/.cache/huggingface/` for subsequent runs
 - Progress shown via Noora progress bar during download
+
+**Download triggers** (user consent required):
+1. **First run**: If no local provider available, prompt user:
+   ```
+   No local LLM found. Download Qwen3-4B (~2.5GB) for offline use?
+   [Y]es / [N]o, use cloud / [S]maller model (0.6B, ~400MB)
+   ```
+2. **Fallback moment**: When FoundationModel unavailable and MLX not cached:
+   ```
+   FoundationModel unavailable. Download local model or use cloud?
+   [D]ownload Qwen3-4B / [C]loud (requires API key) / [S]kip
+   ```
+3. **Explicit command**: `halp --setup` to pre-download model
+4. **User declines**: Remember choice in config, use cloud or show setup instructions
 
 **Configuration**:
 ```swift
