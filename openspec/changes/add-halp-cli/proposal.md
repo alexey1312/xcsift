@@ -10,9 +10,10 @@ Inspired by [orhun/halp](https://github.com/orhun/halp) (Rust), but reimagined w
 
 - **NEW PROJECT**: Create `halp` - a Swift CLI tool for intelligent command-line help
 - Uses [AnyLanguageModel](https://github.com/mattt/anylanguagemodel) for unified LLM access
+- Uses [Noora](https://github.com/tuist/Noora) for beautiful terminal UI (alerts, progress, prompts)
 - **Default provider**: FoundationModel (free, offline, private on macOS 26+)
 - **Fallback chain**: FoundationModel → Ollama → Cloud APIs (Anthropic/OpenAI)
-- Built with Swift ArgumentParser (same stack as xcsift)
+- Built with Swift ArgumentParser + Noora (polished CLI UX)
 
 ### Core Features
 

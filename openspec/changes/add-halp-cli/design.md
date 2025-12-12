@@ -98,12 +98,59 @@ api_key_env = "OPENAI_API_KEY"
 model = "gpt-4o"
 ```
 
+### D6: Use Noora for terminal UI
+
+**Decision**: Depend on `tuist/Noora` package for all terminal UI components
+
+**Rationale**:
+- Consistent, beautiful CLI design system from Tuist team
+- Built-in components: prompts, alerts, progress indicators, text styling
+- Active maintenance, Swift 6 compatible
+- Provides polished UX without reinventing the wheel
+
+**Components to use**:
+- **Alerts**: Success/warning/error messages for provider status, errors
+- **Progress**: Spinner during LLM inference, step indicators for multi-stage operations
+- **Prompts**: Interactive provider selection, confirmation dialogs
+- **Text Styling**: Consistent formatting for explanations, code blocks, examples
+
+**Example usage**:
+```swift
+import Noora
+
+// Show spinner while waiting for LLM
+let noora = Noora()
+noora.progressStep(
+    message: "Thinking...",
+    successMessage: "Done",
+    errorMessage: "Failed"
+) {
+    try await llm.generate(prompt)
+}
+
+// Alert for provider fallback
+noora.warning("FoundationModel unavailable, using Ollama")
+
+// Success message
+noora.success("Explanation generated")
+```
+
+**Alternatives considered**:
+- Raw ANSI codes: Error-prone, inconsistent across terminals
+- Custom UI layer: Duplicates Noora's work, maintenance burden
+- No styling: Poor UX, hard to distinguish sections
+
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────┐
 │                      halp CLI                           │
-│  (Swift ArgumentParser)                                 │
+│  (Swift ArgumentParser + Noora UI)                      │
+├─────────────────────────────────────────────────────────┤
+│                      Noora                              │
+│  ┌──────────┬──────────┬───────────┬─────────┐         │
+│  │  Alerts  │ Progress │  Prompts  │ Styling │         │
+│  └──────────┴──────────┴───────────┴─────────┘         │
 ├─────────────────────────────────────────────────────────┤
 │                   HalpEngine                            │
 │  - Context gathering (help, man, tldr)                  │
@@ -125,6 +172,7 @@ model = "gpt-4o"
 3. **ContextGatherer.swift** - Extracts help/man/tldr content
 4. **ProviderManager.swift** - Handles fallback chain
 5. **Config.swift** - Configuration file parsing
+6. **UI.swift** - Noora-based terminal UI (alerts, progress, prompts)
 
 ## Risks / Trade-offs
 

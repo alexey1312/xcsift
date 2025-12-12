@@ -1,7 +1,7 @@
 # Tasks: halp CLI Implementation
 
 ## 1. Project Setup
-- [ ] 1.1 Create Package.swift with dependencies (ArgumentParser, AnyLanguageModel)
+- [ ] 1.1 Create Package.swift with dependencies (ArgumentParser, AnyLanguageModel, Noora)
 - [ ] 1.2 Configure trait-based imports for AnyLanguageModel providers
 - [ ] 1.3 Set up CI workflow (macOS + Linux)
 - [ ] 1.4 Add README.md with installation instructions
@@ -38,11 +38,15 @@
 - [ ] 6.3 Add environment variable overrides
 - [ ] 6.4 Implement config validation
 
-## 7. UX Polish
-- [ ] 7.1 Add spinner/progress indicator for LLM requests
-- [ ] 7.2 Implement response caching (SQLite or file-based)
-- [ ] 7.3 Add colored output for terminal
-- [ ] 7.4 Implement streaming output (optional)
+## 7. Terminal UI (Noora)
+- [ ] 7.1 Create UI.swift wrapper for Noora components
+- [ ] 7.2 Implement progress spinner for LLM inference
+- [ ] 7.3 Add success/warning/error alerts for provider status
+- [ ] 7.4 Implement styled text output for explanations and examples
+- [ ] 7.5 Add interactive prompts for provider selection (when multiple available)
+- [ ] 7.6 Implement step indicators for multi-stage operations
+- [ ] 7.7 Add response caching (SQLite or file-based)
+- [ ] 7.8 Implement streaming output with Noora progress (optional)
 
 ## 8. Testing
 - [ ] 8.1 Unit tests for ContextGatherer
