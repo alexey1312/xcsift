@@ -29,4 +29,14 @@ Inspired by [orhun/halp](https://github.com/orhun/halp) (Rust), but reimagined w
 - **New project**: Standalone Swift package, potentially in same repo or separate
 - **Shared infrastructure**: Reuses xcsift patterns (ArgumentParser, CI workflow)
 - **Target audience**: Developers, DevOps, anyone learning CLI tools
-- **Platform**: macOS 26+ (full features), macOS 15+ / Linux (cloud-only mode)
+
+### Platform Support
+
+| Platform | Local Providers | Cloud Providers |
+|----------|-----------------|-----------------|
+| **macOS 26+ (Apple Silicon)** | FoundationModel, MLX, Ollama | Anthropic, OpenAI |
+| **macOS 15+ (Apple Silicon)** | MLX, Ollama | Anthropic, OpenAI |
+| **macOS (Intel)** | Ollama | Anthropic, OpenAI |
+| **Linux** | Ollama | Anthropic, OpenAI |
+
+**Linux note**: Full functionality via Ollama (free, local) or Cloud APIs. No MLX/FoundationModel support.

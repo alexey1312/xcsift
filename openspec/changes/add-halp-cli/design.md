@@ -15,7 +15,17 @@ Creating an LLM-powered CLI help assistant that provides intelligent explanation
 ### Non-Goals
 - Not a general-purpose LLM chat interface
 - Not a shell replacement or command executor
-- Not supporting Windows (Swift/FoundationModel limitation)
+- Not supporting Windows (Swift toolchain limitation)
+
+### Platform Constraints
+| Platform | Available Providers |
+|----------|---------------------|
+| macOS 26+ (Apple Silicon) | FoundationModel, MLX, Ollama, Cloud |
+| macOS 15+ (Apple Silicon) | MLX, Ollama, Cloud |
+| macOS (Intel) | Ollama, Cloud |
+| Linux | Ollama, Cloud |
+
+**Linux Strategy**: Detect platform at runtime, skip MLX/FoundationModel checks, prioritize Ollama → Cloud fallback.
 
 ## Decisions
 

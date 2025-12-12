@@ -32,6 +32,8 @@
 - [ ] 4.10 Add Anthropic provider with API key from env
 - [ ] 4.11 Add OpenAI provider with API key from env
 - [ ] 4.12 Implement provider availability detection chain
+- [ ] 4.13 Add Linux platform detection (skip MLX/FoundationModel)
+- [ ] 4.14 Show "install Ollama" suggestion on Linux without local provider
 
 ## 5. HalpEngine Core
 - [ ] 5.1 Implement prompt templates for each mode (explain, suggest, examples, man)

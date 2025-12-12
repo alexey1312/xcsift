@@ -93,6 +93,19 @@ The system SHALL automatically fall back through configured providers when the p
 - **THEN** system exits with error code 1
 - **AND** displays setup instructions for available providers
 
+#### Scenario: Linux with Ollama
+- **GIVEN** Linux system with Ollama running
+- **WHEN** user runs any halp command
+- **THEN** system uses Ollama for inference
+- **AND** MLX/FoundationModel options are not shown
+
+#### Scenario: Linux without Ollama
+- **GIVEN** Linux system without Ollama
+- **GIVEN** ANTHROPIC_API_KEY is set
+- **WHEN** user runs any halp command
+- **THEN** system uses Anthropic API
+- **AND** suggests installing Ollama for free local inference
+
 ### Requirement: MLX Model Download Consent
 The system SHALL request user consent before downloading MLX models.
 
