@@ -12,7 +12,8 @@ Inspired by [orhun/halp](https://github.com/orhun/halp) (Rust), but reimagined w
 - Uses [AnyLanguageModel](https://github.com/mattt/anylanguagemodel) for unified LLM access
 - Uses [Noora](https://github.com/tuist/Noora) for beautiful terminal UI (alerts, progress, prompts)
 - **Default provider**: FoundationModel (free, offline, private on macOS 26+)
-- **Fallback chain**: FoundationModel → Ollama → Cloud APIs (Anthropic/OpenAI)
+- **Fallback chain**: FoundationModel → MLX (auto-download) → Ollama → Cloud APIs
+- **MLX auto-download**: On Apple Silicon, automatically downloads Qwen3-4B (~2.5GB) from HuggingFace on first run — no manual setup required
 - Built with Swift ArgumentParser + Noora (polished CLI UX)
 
 ### Core Features

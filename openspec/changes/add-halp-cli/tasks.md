@@ -21,10 +21,13 @@
 ## 4. Provider Management
 - [ ] 4.1 Implement ProviderManager with fallback chain
 - [ ] 4.2 Add FoundationModel provider (macOS 26+)
-- [ ] 4.3 Add Ollama provider with configurable host/model
-- [ ] 4.4 Add Anthropic provider with API key from env
-- [ ] 4.5 Add OpenAI provider with API key from env
-- [ ] 4.6 Implement provider availability detection
+- [ ] 4.3 Add MLX provider with HuggingFace auto-download
+- [ ] 4.4 Implement MLX model download progress (Noora progress bar)
+- [ ] 4.5 Add Apple Silicon detection for MLX availability
+- [ ] 4.6 Add Ollama provider with configurable host/model
+- [ ] 4.7 Add Anthropic provider with API key from env
+- [ ] 4.8 Add OpenAI provider with API key from env
+- [ ] 4.9 Implement provider availability detection chain
 
 ## 5. HalpEngine Core
 - [ ] 5.1 Implement prompt templates for each mode (explain, suggest, examples, man)

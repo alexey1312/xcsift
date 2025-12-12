@@ -35,22 +35,37 @@ Creating an LLM-powered CLI help assistant that provides intelligent explanation
 
 ### D2: Provider priority chain
 
-**Decision**: FoundationModel → Ollama → Anthropic → OpenAI
+**Decision**: FoundationModel → MLX (auto-download) → Ollama → Anthropic → OpenAI
 
 **Rationale**:
-- FoundationModel: Free, offline, private (best UX)
-- Ollama: Free, offline, user-controlled models
-- Anthropic/OpenAI: Paid fallback for complex queries
+- FoundationModel: Free, offline, private (best UX on macOS 26+)
+- MLX: Free, offline, auto-downloads from HuggingFace (Apple Silicon only)
+- Ollama: Free, offline, user-managed models (requires separate install)
+- Anthropic/OpenAI: Paid cloud fallback for complex queries
+
+**MLX Auto-Download** (via AnyLanguageModel):
+- First run downloads model from HuggingFace MLX Community
+- Default model: `mlx-community/Qwen3-4B-4bit` (~2.5GB)
+- Qwen3-4B supports thinking/non-thinking modes, excellent for explanations
+- Cached in `~/.cache/huggingface/` for subsequent runs
+- Progress shown via Noora progress bar during download
 
 **Configuration**:
 ```swift
 enum Provider: String, CaseIterable {
     case foundation  // Default on macOS 26+
-    case ollama      // Local fallback
+    case mlx         // Auto-download, Apple Silicon only
+    case ollama      // Local, requires Ollama server
     case anthropic   // Cloud fallback
     case openai      // Cloud fallback
 }
 ```
+
+**Availability detection order**:
+1. Check FoundationModel availability (macOS 26+ API)
+2. Check Apple Silicon (`ProcessInfo.processInfo.machineHardwareName`)
+3. Check Ollama server (`localhost:11434/api/tags`)
+4. Check API key env vars (`ANTHROPIC_API_KEY`, `OPENAI_API_KEY`)
 
 ### D3: Command information sources
 
@@ -83,7 +98,14 @@ halp git rebase --json
 ```toml
 [provider]
 default = "foundation"
-fallback = ["ollama", "anthropic"]
+fallback = ["mlx", "ollama", "anthropic"]
+
+[mlx]
+# Auto-downloads from HuggingFace on first use (~2.5GB)
+model_id = "mlx-community/Qwen3-4B-4bit"
+# Alternative models:
+# model_id = "mlx-community/Qwen3-0.6B-4bit"   # Smaller, faster (~400MB)
+# model_id = "mlx-community/Qwen3-8B-4bit"     # Larger, smarter (~5GB)
 
 [ollama]
 model = "llama3.2"
@@ -158,10 +180,12 @@ noora.success("Explanation generated")
 │  - Response formatting                                  │
 ├─────────────────────────────────────────────────────────┤
 │                 AnyLanguageModel                        │
-│  ┌──────────┬──────────┬───────────┬─────────┐         │
-│  │Foundation│  Ollama  │ Anthropic │ OpenAI  │         │
-│  │  Model   │          │           │         │         │
-│  └──────────┴──────────┴───────────┴─────────┘         │
+│  ┌──────────┬──────────┬──────────┬───────────┬───────┐│
+│  │Foundation│   MLX    │  Ollama  │ Anthropic │OpenAI ││
+│  │  Model   │(HF auto) │          │           │       ││
+│  └──────────┴──────────┴──────────┴───────────┴───────┘│
+│       ↑           ↑          ↑           ↑        ↑    │
+│   macOS 26+   Apple M1+   localhost   cloud    cloud   │
 └─────────────────────────────────────────────────────────┘
 ```
 
@@ -178,11 +202,14 @@ noora.success("Explanation generated")
 
 | Risk | Mitigation |
 |------|------------|
-| FoundationModel unavailable (pre-macOS 26) | Graceful fallback to Ollama/cloud with clear message |
+| FoundationModel unavailable (pre-macOS 26) | Auto-fallback to MLX with clear message |
+| MLX first-run download (~2.5GB) | Show Noora progress bar, cache permanently, offer smaller model option |
+| Intel Mac (no MLX support) | Skip MLX, fallback to Ollama or cloud |
 | Ollama not installed | Skip in chain, try next provider |
 | No API keys configured | Error with setup instructions |
 | LLM hallucination | Include actual `--help` output in response for verification |
 | Slow cloud responses | Show spinner, cache common queries |
+| Disk space for MLX model | Warn user, offer `--provider cloud` override |
 
 ## Migration Plan
 
