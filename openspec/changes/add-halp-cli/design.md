@@ -27,6 +27,12 @@ Creating an LLM-powered CLI help assistant that provides intelligent explanation
 
 **Linux Strategy**: Detect platform at runtime, skip MLX/FoundationModel checks, prioritize Ollama → Cloud fallback.
 
+**Ollama Installation** (user responsibility, halp shows instructions):
+- macOS: `brew install ollama` or download from ollama.ai
+- Linux: `curl -fsSL https://ollama.ai/install.sh | sh`
+- After install: `ollama pull llama3.2` (or configured model)
+- halp detects Ollama by checking `localhost:11434/api/tags`
+
 ## Decisions
 
 ### D1: Use AnyLanguageModel for provider abstraction

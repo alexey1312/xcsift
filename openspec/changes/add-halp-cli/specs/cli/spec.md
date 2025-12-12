@@ -99,12 +99,21 @@ The system SHALL automatically fall back through configured providers when the p
 - **THEN** system uses Ollama for inference
 - **AND** MLX/FoundationModel options are not shown
 
-#### Scenario: Linux without Ollama
+#### Scenario: Linux without Ollama, cloud available
 - **GIVEN** Linux system without Ollama
 - **GIVEN** ANTHROPIC_API_KEY is set
 - **WHEN** user runs any halp command
 - **THEN** system uses Anthropic API
 - **AND** suggests installing Ollama for free local inference
+
+#### Scenario: Show Ollama installation instructions
+- **GIVEN** Ollama is not installed
+- **GIVEN** no cloud API keys configured
+- **WHEN** user runs any halp command
+- **THEN** system shows platform-specific installation instructions
+- **AND** shows `curl -fsSL https://ollama.ai/install.sh | sh` for Linux
+- **AND** shows `brew install ollama` for macOS
+- **AND** reminds to run `ollama pull <model>` after installation
 
 ### Requirement: MLX Model Download Consent
 The system SHALL request user consent before downloading MLX models.
