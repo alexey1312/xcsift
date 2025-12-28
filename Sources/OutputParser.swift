@@ -351,7 +351,7 @@ class OutputParser {
         let lines = input.split(separator: "\n", omittingEmptySubsequences: false)
 
         for line in lines {
-            parseLine(String(line))
+            parseLine(line)
         }
 
         // If warnings-as-errors is enabled, convert warnings to errors
@@ -581,38 +581,53 @@ class OutputParser {
         currentDependencyTarget = nil
     }
 
-    private func parseLine(_ line: String) {
+    private func parseLine(_ line: Substring) {
         // Quick filters to avoid regex on irrelevant lines
         if line.isEmpty || line.count > 5000 {
             return
         }
 
         // Check for linker-related lines first (multi-line parsing)
-        if parseLinkerLine(line) {
-            return
+        // Optimization: Avoid String allocation for parseLinkerLine unless necessary
+        let isLinkerStateActive = pendingLinkerSymbol != nil || pendingDuplicateSymbol != nil
+        if isLinkerStateActive
+            || line.contains("ld: ")
+            || line.contains("Undefined symbols")
+            || line.contains("duplicate symbol")
+            || line.contains("\", referenced from:")
+        {
+            if parseLinkerLine(String(line)) {
+                return
+            }
         }
+
+        // Optimization: track converted string to avoid double allocation
+        var cachedLineStr: String?
 
         // Check for build phases only if build info is requested (performance optimization)
         if shouldParseBuildInfo {
+            let str = String(line)
+            cachedLineStr = str
+
             // Check for dependency graph (xcodebuild outputs this early in build)
-            if parseDependencyGraph(line) {
+            if parseDependencyGraph(str) {
                 return
             }
 
             // Check for xcodebuild phases (these have different keywords from errors/warnings)
-            if let (phaseName, targetName) = parseBuildPhase(line) {
+            if let (phaseName, targetName) = parseBuildPhase(str) {
                 addPhaseToTarget(phaseName, target: targetName)
                 return
             }
 
             // Check for SPM phases (format: [N/M] Compiling/Linking TARGET)
-            if let (phaseName, targetName) = parseSPMPhase(line) {
+            if let (phaseName, targetName) = parseSPMPhase(str) {
                 addPhaseToTarget(phaseName, target: targetName)
                 return
             }
 
             // Check for target timing
-            if let (targetName, duration) = parseTargetTiming(line) {
+            if let (targetName, duration) = parseTargetTiming(str) {
                 // Track order if this is the first time we see this target
                 if !targetOrder.contains(targetName) {
                     targetOrder.append(targetName)
@@ -635,8 +650,11 @@ class OutputParser {
             return
         }
 
+        // We convert to String only when we know it's relevant, or reuse if already converted
+        let lineStr = cachedLineStr ?? String(line)
+
         // Parse parallel test scheduling lines: [N/TOTAL] Testing Module.Class/method
-        if line.contains("] Testing "), let match = line.firstMatch(of: Self.parallelTestSchedulingRegex) {
+        if lineStr.contains("] Testing "), let match = lineStr.firstMatch(of: Self.parallelTestSchedulingRegex) {
             if let _ = Int(match.1), let total = Int(match.2) {
                 // Only set on first match (total should be consistent across all lines)
                 if parallelTestsTotalCount == nil {
@@ -647,14 +665,14 @@ class OutputParser {
         }
 
         // Parse executable registration (deduplicate by path)
-        if let executable = parseExecutable(line) {
+        if let executable = parseExecutable(lineStr) {
             if seenExecutablePaths.insert(executable.path).inserted {
                 executables.append(executable)
             }
             return
         }
 
-        if let failedTest = parseFailedTest(line) {
+        if let failedTest = parseFailedTest(lineStr) {
             let normalizedTestName = normalizeTestName(failedTest.test)
 
             // Check if we've already seen this test name or a similar one
@@ -685,28 +703,28 @@ class OutputParser {
                     }
                 }
             }
-        } else if let error = parseError(line) {
+        } else if let error = parseError(lineStr) {
             let key = "\(error.file ?? ""):\(error.line ?? 0):\(error.message)"
             if !seenErrors.contains(key) {
                 seenErrors.insert(key)
                 errors.append(error)
             }
-        } else if let warning = parseWarning(line) {
+        } else if let warning = parseWarning(lineStr) {
             let key = "\(warning.file ?? ""):\(warning.line ?? 0):\(warning.message)"
             if !seenWarnings.contains(key) {
                 seenWarnings.insert(key)
                 warnings.append(warning)
             }
-        } else if let runtimeWarning = parseRuntimeWarning(line) {
+        } else if let runtimeWarning = parseRuntimeWarning(lineStr) {
             let key = "\(runtimeWarning.file ?? ""):\(runtimeWarning.line ?? 0):\(runtimeWarning.message)"
             if !seenWarnings.contains(key) {
                 seenWarnings.insert(key)
                 warnings.append(runtimeWarning)
             }
-        } else if parsePassedTest(line) {
+        } else if parsePassedTest(lineStr) {
             return
         } else {
-            parseBuildAndTestTime(line)
+            parseBuildAndTestTime(lineStr)
         }
     }
 
