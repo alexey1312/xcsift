@@ -714,7 +714,8 @@ class OutputParser {
 
     /// Parses linker-related lines. Returns true if the line was handled.
     private func parseLinkerLine(_ line: String) -> Bool {
-        let trimmed = line.trimmingCharacters(in: .whitespaces)
+        // Optimization: use Substring to avoid allocation on every line
+        let trimmed = line.drop(while: { $0.isWhitespace })
 
         // Pattern: "Undefined symbols for architecture arm64:"
         if trimmed.hasPrefix("Undefined symbols for architecture ") {
@@ -735,30 +736,36 @@ class OutputParser {
         }
 
         // Pattern: "      objc-class-ref in FileName.o" - reference location line
-        if let symbol = pendingLinkerSymbol, let arch = currentLinkerArchitecture,
-            trimmed.contains(" in ") && (trimmed.hasSuffix(".o") || trimmed.hasSuffix(".a"))
-        {
-            // Extract the reference (everything after " in ")
-            if let inRange = trimmed.range(of: " in ") {
-                let referencedFrom = String(trimmed[inRange.upperBound...])
-                appendLinkerErrorIfNew(
-                    LinkerError(symbol: symbol, architecture: arch, referencedFrom: referencedFrom)
-                )
-                pendingLinkerSymbol = nil
+        if let symbol = pendingLinkerSymbol, let arch = currentLinkerArchitecture {
+            // Check suffix on fully trimmed string to match original behavior
+            let fullyTrimmed = trimmed.trimmingCharacters(in: .whitespaces)
+            if fullyTrimmed.contains(" in ") && (fullyTrimmed.hasSuffix(".o") || fullyTrimmed.hasSuffix(".a")) {
+                // Extract the reference (everything after " in ")
+                if let inRange = fullyTrimmed.range(of: " in ") {
+                    let referencedFrom = String(fullyTrimmed[inRange.upperBound...])
+                    appendLinkerErrorIfNew(
+                        LinkerError(symbol: symbol, architecture: arch, referencedFrom: referencedFrom)
+                    )
+                    pendingLinkerSymbol = nil
+                }
+                return true
             }
-            return true
         }
 
         // Pattern: "ld: framework not found SomeFramework"
         if trimmed.hasPrefix("ld: framework not found ") {
-            let framework = String(trimmed.dropFirst("ld: framework not found ".count))
+            let framework = String(trimmed.dropFirst("ld: framework not found ".count)).trimmingCharacters(
+                in: .whitespaces
+            )
             appendLinkerErrorIfNew(LinkerError(message: "framework not found \(framework)"))
             return true
         }
 
         // Pattern: "ld: library not found for -lsomelib"
         if trimmed.hasPrefix("ld: library not found for ") {
-            let library = String(trimmed.dropFirst("ld: library not found for ".count))
+            let library = String(trimmed.dropFirst("ld: library not found for ".count)).trimmingCharacters(
+                in: .whitespaces
+            )
             appendLinkerErrorIfNew(LinkerError(message: "library not found for \(library)"))
             return true
         }
@@ -778,16 +785,19 @@ class OutputParser {
         }
 
         // Pattern: "    /path/to/file.o" - conflicting file path (indented, part of duplicate symbol block)
-        if pendingDuplicateSymbol != nil && (trimmed.hasSuffix(".o") || trimmed.hasSuffix(".a"))
-            && (line.hasPrefix("    ") || line.hasPrefix("\t"))
-        {
-            pendingConflictingFiles.append(trimmed)
-            return true
+        if pendingDuplicateSymbol != nil {
+            let fullyTrimmed = trimmed.trimmingCharacters(in: .whitespaces)
+            if (fullyTrimmed.hasSuffix(".o") || fullyTrimmed.hasSuffix(".a"))
+                && (line.hasPrefix("    ") || line.hasPrefix("\t"))
+            {
+                pendingConflictingFiles.append(fullyTrimmed)
+                return true
+            }
         }
 
         // Pattern: "ld: building for iOS Simulator, but linking in dylib built for iOS"
         if trimmed.hasPrefix("ld: building for ") && trimmed.contains("but linking") {
-            appendLinkerErrorIfNew(LinkerError(message: trimmed))
+            appendLinkerErrorIfNew(LinkerError(message: String(trimmed).trimmingCharacters(in: .whitespaces)))
             return true
         }
 
@@ -798,7 +808,7 @@ class OutputParser {
                 // Extract architecture from summary line
                 var arch = ""
                 if let archRange = trimmed.range(of: "for architecture ") {
-                    arch = String(trimmed[archRange.upperBound...])
+                    arch = String(trimmed[archRange.upperBound...]).trimmingCharacters(in: .whitespaces)
                 }
                 appendLinkerErrorIfNew(
                     LinkerError(symbol: symbol, architecture: arch, conflictingFiles: pendingConflictingFiles)
@@ -821,8 +831,7 @@ class OutputParser {
     private func normalizeTestName(_ testName: String) -> String {
         // Convert "-[xcsiftTests.OutputParserTests testFirstFailingTest]" to "xcsiftTests.OutputParserTests testFirstFailingTest"
         if testName.hasPrefix("-[") && testName.hasSuffix("]") {
-            let withoutBrackets = String(testName.dropFirst(2).dropLast(1))
-            return withoutBrackets.replacingOccurrences(of: " ", with: " ")
+            return String(testName.dropFirst(2).dropLast(1))
         }
         return testName
     }
